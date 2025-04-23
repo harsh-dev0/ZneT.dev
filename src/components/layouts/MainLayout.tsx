@@ -11,10 +11,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
-      <Sidebar 
-        isCollapsed={sidebarCollapsed} 
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} 
-      />
+      <div className="hidden md:block h-full">
+        <Sidebar 
+          isCollapsed={sidebarCollapsed} 
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} 
+        />
+      </div>
       <main className="flex-1 overflow-auto">
         {children}
       </main>

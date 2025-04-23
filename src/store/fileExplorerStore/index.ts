@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { FileExplorerState, FileSystemItem } from './types';
-import { generateId, findItemById } from './helpers';
+import { generateId } from './helpers';
 import { initialFileSystem } from './mockData';
 
 export * from './types';

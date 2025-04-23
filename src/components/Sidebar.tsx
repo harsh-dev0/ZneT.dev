@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     >
       <div className="h-12 border-b flex items-center px-4 sticky top-0 bg-card z-10">
         <div className="flex-1 overflow-hidden">
-          {!isCollapsed && <span className="font-semibold">ZneT Explorer</span>}
+          {!isCollapsed && <span className="font-semibold">File Explorer</span>}
         </div>
         <button
           onClick={onToggleCollapse}
