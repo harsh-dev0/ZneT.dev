@@ -14,8 +14,8 @@ const Index = () => {
   return (
     <MainLayout>
       <div className="md:hidden flex flex-col h-screen w-screen bg-card">
-        <div className="h-12 flex items-center justify-center bg-primary text-primary-foreground text-lg font-bold shadow-sm border-b border-border">
-        <h1 className="ml-2 font-bold text-lg text-znet-accent">ZneT <span className="text-sm font-normal text-muted-foreground">AI-First IDE</span></h1>
+        <div className="h-12 flex items-center justify-center bg-black text-white text-lg font-bold shadow-sm border-b border-border">
+          <h1 className="ml-2 font-bold text-lg text-znet-accent">ZneT <span className="text-sm font-normal text-gray-300">AI-First IDE</span></h1>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="bg-muted text-card-foreground px-6 py-4 rounded-lg shadow font-semibold text-center text-base max-w-xs mx-auto border border-border">
@@ -25,7 +25,7 @@ const Index = () => {
       </div>
       <div className="hidden md:flex flex-col h-full">
         <div className="h-12 border-b flex items-center px-4 bg-card justify-between">
-        <h1 className="ml-2 font-bold text-lg text-znet-accent">ZneT <span className="text-sm font-normal text-muted-foreground">AI-First IDE</span></h1>
+          <h1 className="ml-2 font-bold text-lg text-znet-accent">ZneT <span className="text-sm font-normal text-gray-300">AI-First IDE</span></h1>
           <div className="flex items-center gap-2">
             <Button 
               variant={view === 'code' ? 'default' : 'outline'}

@@ -15,7 +15,9 @@ export default function EditorTabStrip() {
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     closeTab(id);
-    setActiveFileId(id === activeTabId ? null : activeTabId);
+    setTimeout(() => {
+      setActiveFileId(useTabStore.getState().activeTabId);
+    }, 0);
   };
 
   return (
