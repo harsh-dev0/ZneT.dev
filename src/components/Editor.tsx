@@ -44,10 +44,10 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ className }) => {
   }, [activeFileId, activeFile, openTab]);
 
   const handleEditorChange = (value: string | undefined) => {
-    if (activeFileId && value !== undefined) {
-      updateFileContent(activeFileId, value);
-    }
+    if (!activeFileId || value === undefined) return;
+    updateFileContent(activeFileId, value);
   };
+
 
   const getLanguage = (fileName: string) => {
     if (!fileName) return 'plaintext';
@@ -83,8 +83,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ className }) => {
         {activeFile?.type === 'file' ? (
           view === 'code' ? (
             <Editor
+              key={activeFile.id + '-' + getLanguage(activeFile.name)}
               height="100%"
-              defaultLanguage={getLanguage(activeFile.name)}
+              language={getLanguage(activeFile.name)}
               value={activeFile.content}
               onChange={handleEditorChange}
               theme="vs-dark"

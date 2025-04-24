@@ -108,29 +108,52 @@ export const useFileExplorerStore = create<FileExplorerState>((set) => ({
       return { fileSystem: addFolderToPath(newFileSystem) };
     }),
   
-  deleteItem: (id) =>
+  deleteItem: (id) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const useTabStore = require('@/store/tabStore').useTabStore;
     set((state) => {
       const newFileSystem = [...state.fileSystem];
-      
-      const deleteFromFileSystem = (
-        items: FileSystemItem[]
-      ): FileSystemItem[] => {
+      const deletedIds: string[] = [];
+      const collectDeleted = (items: FileSystemItem[]): void => {
+        for (const item of items) {
+          if (item.id === id) {
+            deletedIds.push(item.id);
+            if (item.children) {
+              const collectChildren = (children: FileSystemItem[]) => {
+                for (const child of children) {
+                  deletedIds.push(child.id);
+                  if (child.children) collectChildren(child.children);
+                }
+              };
+              collectChildren(item.children);
+            }
+          } else if (item.children) {
+            collectDeleted(item.children);
+          }
+        }
+      };
+      collectDeleted(newFileSystem);
+      const deleteFromFileSystem = (items: FileSystemItem[]): FileSystemItem[] => {
         return items.filter((item) => {
-          if (item.id === id) return false;
-          
+          if (deletedIds.includes(item.id)) return false;
           if (item.children) {
             item.children = deleteFromFileSystem(item.children);
           }
-          
           return true;
         });
       };
-      
-      return { 
+      setTimeout(() => {
+        const tabStore = useTabStore.getState();
+        for (const did of deletedIds) {
+          tabStore.closeTab(did);
+        }
+      }, 0);
+      return {
         fileSystem: deleteFromFileSystem(newFileSystem),
-        activeFileId: state.activeFileId === id ? null : state.activeFileId,
+        activeFileId: deletedIds.includes(state.activeFileId as string) ? null : state.activeFileId,
       };
-    }),
+    });
+  },
   
   renameItem: (id, newName) =>
     set((state) => {

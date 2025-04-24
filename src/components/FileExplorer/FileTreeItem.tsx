@@ -58,9 +58,15 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({ item, depth }) => {
       
       {isFolder && isExpanded && item.children && (
         <div>
-          {item.children.map((child) => (
-            <FileTreeItem key={child.id} item={child} depth={depth + 1} />
-          ))}
+          {[...item.children]
+            .sort((a, b) => {
+              if (a.type === b.type) return a.name.localeCompare(b.name);
+              if (a.type === 'folder') return -1;
+              return 1;
+            })
+            .map((child) => (
+              <FileTreeItem key={child.id} item={child} depth={depth + 1} />
+            ))}
         </div>
       )}
     </div>

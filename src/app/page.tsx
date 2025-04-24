@@ -1,5 +1,6 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useFileExplorerStore } from '@/store/fileExplorerStore';
 import MainLayout from '@/components/layouts/MainLayout';
 import CodeEditor from '@/components/Editor';
 import Preview from '@/components/Preview';
@@ -7,9 +8,35 @@ import AgentPanel from '@/components/AgentPanel';
 import { Button } from '@/components/ui/button';
 import { Code, Eye } from 'lucide-react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { useToast } from '@/hooks/use-toast';
 
+const LOCAL_STORAGE_KEY = 'znet_files';
 const Index = () => {
+  const { toast } = useToast();
   const [view, setView] = useState<'code' | 'preview'>('code');
+  const fileSystem = useFileExplorerStore((s) => s.fileSystem);
+  const saveFilesAction = useFileExplorerStore((s) => s.saveFiles);
+  const resetFilesAction = useFileExplorerStore((s) => s.resetFiles);
+  const saveFiles = () => { saveFilesAction(); toast({ title: 'Files saved successfully' }); };
+  const resetFiles = () => { resetFilesAction(); toast({ title: 'Files reset successfully' }); };
+  
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      try {
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data)) {
+          useFileExplorerStore.setState({ fileSystem: data });
+        }
+      } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fileSystem));
+  }, [fileSystem]);
 
   return (
     <MainLayout>
@@ -43,12 +70,26 @@ const Index = () => {
               <Eye className="h-4 w-4 mr-1" />
               Preview
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={saveFiles}
+            >
+              Save
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetFiles}
+            >
+              Reset
+            </Button>
           </div>
         </div>
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup direction="horizontal">
             <ResizablePanel defaultSize={70} minSize={30}>
-              {view === 'code' ? <CodeEditor /> : <Preview />}
+              {view === 'code' ? <CodeEditor /> : <Preview key={JSON.stringify(fileSystem)} />}
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={30} minSize={20}>

@@ -8,7 +8,7 @@ type FileItem = {
   content?: string;
   children?: FileItem[];
 };
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const flattenFileSystem = (items: FileItem[]): FileItem[] => {
   let files: FileItem[] = [];
   for (const item of items) {
@@ -21,14 +21,20 @@ const flattenFileSystem = (items: FileItem[]): FileItem[] => {
   return files;
 };
 
-const sanitizeJsxForPreview = (content: string): string => {
-    return content
-      .split('\n')
-      .filter(line => !line.trim().startsWith('import'))
-      .map(line => line.replace(/^export\s+default\s+/, 'window.App = '))
-      .join('\n');
-  };
-  
+function buildVFS(files: FileItem[]): Record<string, string> {
+  const vfs: Record<string, string> = {};
+  function walk(items: FileItem[]) {
+    for (const item of items) {
+      if (item.type === 'file' && typeof item.content === 'string') {
+        vfs[item.path] = item.content;
+      } else if (item.children) {
+        walk(item.children);
+      }
+    }
+  }
+  walk(files);
+  return vfs;
+}
 
 const Preview: React.FC = () => {
   const fileSystem = useFileExplorerStore((state) => state.fileSystem);
@@ -38,25 +44,17 @@ const Preview: React.FC = () => {
   useEffect(() => {
     const generatePreview = async () => {
       setIsLoading(true);
-
       try {
-        const allFiles = flattenFileSystem(fileSystem);
-        const jsxFiles = allFiles.filter(file =>
-          file.type === 'file' &&
-          typeof file.content === 'string' &&
-          (file.path.endsWith('.jsx') || file.path.endsWith('.js'))
+        const vfs = buildVFS(fileSystem);
+        const entryPath = Object.keys(vfs).find(
+          k => k.endsWith('index.jsx') || k.endsWith('index.js')
         );
-
-        const entryFile = jsxFiles.find(file => file.path.endsWith('index.jsx'));
-
-        if (!entryFile) {
+        if (!entryPath) {
           setHtml('<div style="padding:20px">No index.jsx entry file found</div>');
           setIsLoading(false);
           return;
         }
-
-        const cleanedCode = sanitizeJsxForPreview(entryFile.content!);
-
+        const vfsJson = JSON.stringify(vfs).replace(/<\//g, '<\/');
         const previewHtml = `
           <!DOCTYPE html>
           <html>
@@ -77,43 +75,67 @@ const Preview: React.FC = () => {
               <div id="root">
                 <div class="loading">Loading preview...</div>
               </div>
-              <script type="text/babel">
-                ${cleanedCode}
-
-                document.addEventListener('DOMContentLoaded', () => {
-                  setTimeout(() => {
-                    try {
-                      const Component = window.App;
-                      if (!Component) throw new Error("Component not found (expected window.App)");
-                      const root = ReactDOM.createRoot(document.getElementById('root'));
-                      root.render(React.createElement(Component));
-                    } catch (err) {
-                      console.error('Render error:', err);
-                      document.getElementById('root').innerHTML = 
-                        \`<div class="preview-error">
-                          <h3>Render error:</h3>
-                          <pre>\${err.message}</pre>
-                          <p>Check the console for details</p>
-                        </div>\`;
+              <script type="text/javascript">
+                window.__VFS__ = ${vfsJson};
+                window.__MODULE_CACHE__ = {};
+                window.__resolve = function(path) {
+                  if (window.__MODULE_CACHE__[path]) return window.__MODULE_CACHE__[path].exports;
+                  var code = window.__VFS__[path];
+                  if (!code) throw new Error('Module not found: ' + path);
+                  var exports = {};
+                  var module = { exports };
+                  function require(relPath) {
+                    if (relPath === 'react') return window.React;
+                    if (relPath === 'react-dom') return window.ReactDOM;
+                    if (relPath === 'react-dom/client') return { createRoot: window.ReactDOM.createRoot };
+                    var base = path.substring(0, path.lastIndexOf('/'));
+                    var fullPath = relPath;
+                    if (!relPath.startsWith('/')) {
+                      if (relPath.startsWith('.')) {
+                        fullPath = base + '/' + relPath;
+                      } else {
+                        fullPath = base + '/' + relPath;
+                      }
                     }
-                  }, 100);
-                });
+                    // Normalize path (remove .., .)
+                    var segments = fullPath.split('/');
+                    var normalized = [];
+                    for (var seg of segments) {
+                      if (seg === '' || seg === '.') continue;
+                      if (seg === '..') normalized.pop(); else normalized.push(seg);
+                    }
+                    fullPath = '/' + normalized.join('/');
+                    if (!fullPath.endsWith('.js') && !fullPath.endsWith('.jsx')) fullPath += '.jsx';
+                    return window.__resolve(fullPath);
+
+                  }
+                  var transpiled = Babel.transform(code, { presets: ['react', 'env'] }).code;
+                  var fn = new Function('require', 'exports', 'module', transpiled);
+                  fn(require, exports, module);
+                  window.__MODULE_CACHE__[path] = module;
+                  return module.exports;
+                };
+                window.onload = function() {
+                  try {
+                    var App = window.__resolve('${entryPath}').default || window.__resolve('${entryPath}');
+                    var root = ReactDOM.createRoot(document.getElementById('root'));
+                    root.render(React.createElement(App));
+                  } catch (err) {
+                    document.getElementById('root').innerHTML = '<div class="preview-error">'+err+'</div>';
+                  }
+                };
               </script>
             </body>
           </html>
         `;
-
         setHtml(previewHtml);
       } catch (err) {
         console.error('Preview generation error:', err);
         setHtml(`<div style="padding:20px;color:red">Error generating preview: ${(err as Error).message}</div>`);
       }
-
       setIsLoading(false);
     };
-
     generatePreview();
-
   }, [fileSystem]);
 
   return (
@@ -127,6 +149,7 @@ const Preview: React.FC = () => {
         </div>
       ) : html ? (
         <iframe
+          key={btoa(unescape(encodeURIComponent(html))).slice(0,16)}
           srcDoc={html}
           className="w-full h-full border-0"
           sandbox="allow-scripts allow-popups allow-modals"
