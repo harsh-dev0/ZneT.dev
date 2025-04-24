@@ -19,6 +19,9 @@ export default {
     },
     extend: {
       colors: {
+        'znet-accent': '#9b87f5',
+        'znet-border': '#313244',
+        'muted-foreground': 'hsl(var(--muted-foreground))', // keep only this occurrence
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -31,7 +34,6 @@ export default {
         destructive: "hsl(var(--destructive))",
         "destructive-foreground": "hsl(var(--destructive-foreground))",
         muted: "hsl(var(--muted))",
-        "muted-foreground": "hsl(var(--muted-foreground))",
         accent: "hsl(var(--accent))",
         "accent-foreground": "hsl(var(--accent-foreground))",
         popover: "hsl(var(--popover))",
@@ -49,6 +51,14 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        'bounce-horizontal': {
+          '0%, 100%': {
+            transform: 'translateX(0)'
+          },
+          '50%': {
+            transform: 'translateX(-5px)'
+          }
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -59,6 +69,7 @@ export default {
         },
       },
       animation: {
+        'bounce-horizontal': 'bounce-horizontal 1s infinite',
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },

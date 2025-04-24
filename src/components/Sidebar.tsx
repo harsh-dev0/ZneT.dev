@@ -1,6 +1,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import FileExplorer from './FileExplorer/FileExplorer';
+import { PanelLeft, PanelRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from './ui/button';
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   isCollapsed?: boolean;
@@ -24,29 +27,32 @@ const Sidebar: React.FC<SidebarProps> = ({
     >
       <div className="h-12 border-b flex items-center px-4 sticky top-0 bg-card z-10">
         <div className="flex-1 overflow-hidden">
-          {!isCollapsed && <span className="font-semibold">File Explorer</span>}
+        
+          {!isCollapsed && <span className="ml-2 font-bold text-lg text-znet-accent">File <span className="text-sm font-normal text-muted-foreground">Explorer</span></span>}
         </div>
-        <button
+        <Tooltip>
+          <TooltipTrigger asChild>
+        
+        <Button
+        variant="ghost" 
+              size="icon"
           onClick={onToggleCollapse}
           className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-secondary"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            {isCollapsed ? (
-              <polyline points="9 18 15 12 9 6" />
-            ) : (
-              <polyline points="15 18 9 12 15 6" />
-            )}
-          </svg>
-        </button>
+          
+          {isCollapsed ? (
+            <PanelRight size={20} />
+          ) : (
+            <PanelLeft size={20} />
+          )}
+        </Button>
+        
+        </TooltipTrigger>
+        <TooltipContent>
+          {isCollapsed ? 'Show Sidebar' : 'Hide Sidebar'}
+
+        </TooltipContent>
+        </Tooltip>
       </div>
       <div className="h-[calc(100%-3rem)] overflow-hidden">
         {!isCollapsed && <FileExplorer />}
