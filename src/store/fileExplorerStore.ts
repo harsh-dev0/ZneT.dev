@@ -43,7 +43,7 @@ const findItemById = (
   }
   return null;
 };
-
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const findItemByPath = (
   items: FileSystemItem[],
   path: string
@@ -57,43 +57,6 @@ const findItemByPath = (
   }
   return null;
 };
-// Agent logic helpers for file operations on the in-memory file system
-// These are not part of the zustand state, but operate on it and can be called from anywhere
-
-export function agentListFiles(path: string | undefined, fileSystem: FileSystemItem[]): FileSystemItem[] {
-  // If no path, return top-level (root)
-  if (!path || path === '/') return fileSystem;
-  const folder = findItemByPath(fileSystem, path);
-  if (folder && folder.type === 'folder' && folder.children) return folder.children;
-  return [];
-}
-
-export function agentReadFile(path: string, fileSystem: FileSystemItem[]): string | null {
-  const file = findItemByPath(fileSystem, path);
-  if (file && file.type === 'file') return file.content ?? '';
-  return null;
-}
-
-export function agentEditFile(path: string, oldStr: string, newStr: string, updateFileContent: (id: string, content: string) => void, fileSystem: FileSystemItem[]): string {
-  const file = findItemByPath(fileSystem, path);
-  if (!file || file.type !== 'file') return '❌ File not found.';
-  if (oldStr === newStr) return '❌ oldStr and newStr must be different.';
-  if (!file.content?.includes(oldStr)) return '❌ oldStr not found in file.';
-  const newContent = file.content.replace(new RegExp(oldStr, 'g'), newStr);
-  updateFileContent(file.id, newContent);
-  return '✅ File edited successfully.';
-}
-
-export function agentCreateFile(parentPath: string, name: string, addFile: (parentPath: string, name: string) => void, fileSystem: FileSystemItem[]): string {
-  const parent = findItemByPath(fileSystem, parentPath);
-  if (!parent || parent.type !== 'folder') return '❌ Parent folder not found.';
-  // Check if file already exists
-  if (parent.children?.some(c => c.name === name && c.type === 'file')) {
-    return '❌ File already exists.';
-  }
-  addFile(parentPath, name);
-  return `✅ Created new file at ${parentPath}/${name}`;
-}
 
 export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
   fileSystem: initialFileSystem,
