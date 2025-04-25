@@ -1,32 +1,37 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, MessageSquare } from 'lucide-react';
+import { Send, MessageSquare, Sparkles, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFileExplorerStore } from '@/store/fileExplorerStore';
-
-type Message = {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-};
+import { useMessageStore } from '@/store/messageStore';
+import MessageBubble from '@/components/ui/MessageBubble';
+import ApiKeyForm from '@/components/ui/ApiKeyForm';
+import agentService from '@/services/agentService';
+import { 
+  createReadFileTool, 
+  createListFilesTool, 
+  createEditFileTool 
+} from '@/services/agentTools';
 
 const AgentPanel: React.FC = () => {
   const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '0',
-      role: 'system',
-      content: 'Welcome to ZneT Code Forge! Ask me anything about your code or request changes to your project.',
-      timestamp: new Date(),
-    },
-  ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const fileSystem = useFileExplorerStore((state) => state.fileSystem);
-
+  const { messages, addMessage, isLoading, setLoading, clearMessages } = useMessageStore();
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  useEffect(() => {
+    // Initialize agent tools
+    if (!isInitialized) {
+      agentService.registerTools([
+        createReadFileTool(),
+        createListFilesTool(),
+        createEditFileTool()
+      ]);
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -40,41 +45,44 @@ const AgentPanel: React.FC = () => {
       });
       return;
     }
+    
+    if (!agentService.getApiKey()) {
+      toast({
+        title: "API Key Required",
+        description: "Please set your Groq API key first",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const userMessage: Message = {
+    const userMessage = {
       id: Date.now().toString(),
-      role: 'user',
+      role: 'user' as const,
       content: prompt,
       timestamp: new Date(),
     };
     
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+    addMessage(userMessage);
+    setPrompt('');
+    setLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await agentService.sendMessage(prompt);
       
-      const fileNames = fileSystem
-        .filter(item => item.type === 'file')
-        .map(item => item.path)
-        .join(', ');
+      // The response is already added to the conversation in the service
+      // We just need to update our local message store from the service
+      const conversation = agentService.getConversation();
       
-      const responseContent = `I see you're working on a project with files: ${fileNames.substring(0, 100)}${fileNames.length > 100 ? '...' : ''}. 
+      // Get messages after our user message
+      const newMessages = conversation.filter(
+        msg => msg.timestamp > userMessage.timestamp
+      );
       
-How can I help with your code? You can ask me to:
-- Explain parts of the codebase
-- Suggest improvements
-- Help fix bugs
-- Generate new components`;
+      // Add all new messages to our store
+      for (const msg of newMessages) {
+        addMessage(msg);
+      }
       
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
       toast({
         title: "Success",
         description: "Agent response received",
@@ -82,71 +90,70 @@ How can I help with your code? You can ask me to:
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to get agent response",
+        description: (error as Error).message || "Failed to get agent response",
         variant: "destructive",
       });
       console.error("Agent error:", error);
+      
+      // Add error message
+      addMessage({
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: `Error: ${(error as Error).message}`,
+        timestamp: new Date(),
+      });
     } finally {
-      setIsLoading(false);
-      setPrompt('');
+      setLoading(false);
     }
   };
 
-  const formatTimestamp = (date: Date) => {
-    const time = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-    return time.replace(/([ap])m$/i, (m) => m.toUpperCase());
-  };
-
   return (
-    <div className="flex flex-col h-full bg-card">
-      <div className="p-4 border-b flex items-center">
-        <MessageSquare className="h-5 w-5 mr-2 text-primary" />
-        <h2 className="text-lg font-semibold">AI Agent</h2>
+    <div className="flex flex-col h-full bg-gradient-to-b from-zinc-900 to-black text-white">
+      <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-black/40 backdrop-blur supports-[backdrop-filter]:bg-black/40">
+        <div className="flex items-center">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg mr-3">
+            <Sparkles className="h-4 w-4 text-white" />
+          </div>
+          <h2 className="text-lg font-semibold bg-gradient-to-r from-purple-400 to-pink-400 text-transparent bg-clip-text">AI Agent</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-zinc-400 hover:text-white"
+            onClick={() => {
+              clearMessages();
+              agentService.clearConversation();
+            }}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            Clear
+          </Button>
+          <ApiKeyForm />
+        </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-          <div 
-            key={msg.id} 
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div 
-              className={`rounded-lg px-4 py-2 max-w-[85%] ${
-                msg.role === 'user' 
-                  ? 'bg-primary text-primary-foreground' 
-                  : msg.role === 'system' 
-                    ? 'bg-muted text-muted-foreground' 
-                    : 'bg-secondary text-secondary-foreground'
-              }`}
-            >
-              <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-              <div className={`text-xs mt-1 ${msg.role === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                {formatTimestamp(msg.timestamp)}
-              </div>
-            </div>
-          </div>
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+        {messages.map((msg, idx) => (
+          <MessageBubble key={msg.id + '-' + idx} message={msg} />
         ))}
         <div ref={messagesEndRef} />
         
         {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-secondary text-secondary-foreground rounded-lg px-4 py-2 flex items-center space-x-2">
+          <div className="flex justify-start px-4 py-2">
+            <div className="bg-zinc-800/50 text-zinc-300 rounded-lg px-4 py-2 flex items-center space-x-2">
               <div className="flex space-x-1">
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
               </div>
-              <span className="text-sm">Thinking...</span>
+              <span className="text-sm font-medium">Processing...</span>
             </div>
           </div>
         )}
       </div>
       
-      <div className="p-4 border-t">
+      <div className="p-4 border-t border-zinc-800 bg-black/40">
         <form 
           className="flex gap-2"
           onSubmit={(e) => {
@@ -158,7 +165,7 @@ How can I help with your code? You can ask me to:
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Ask about your code..."
-            className="flex-1 min-h-[80px] max-h-[160px]"
+            className="flex-1 min-h-[80px] max-h-[160px] bg-zinc-800/50 border-zinc-700 focus:border-purple-500 placeholder:text-zinc-500 text-white resize-none"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -169,7 +176,7 @@ How can I help with your code? You can ask me to:
           <Button
             type="submit"
             disabled={isLoading || !prompt.trim()}
-            className="self-end"
+            className="self-end bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg"
           >
             <Send className="h-4 w-4" />
           </Button>
