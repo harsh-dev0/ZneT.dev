@@ -21,11 +21,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         hour12: true,
       });
     } else {
-      return messageDate.toISOString().slice(11, 16); // HH:mm in UTC
+      return messageDate.toISOString().slice(11, 16); 
     }
   };
 
-  // Parse tool calls and results
   const parseToolContent = (content: string) => {
     const toolCallMatch = content.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
     if (toolCallMatch) {
@@ -106,7 +105,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   }
 
   if (toolContent?.type === 'tool-result') {
-    // Don't show tool results in the UI as they're internal
     return null;
   }
 
@@ -154,6 +152,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               },
               p({children, ...props}) {
                 if (
+                  React.Children.toArray(children).some(
+                    child => React.isValidElement(child) && child.type === 'pre'
+                  )
+                ) {
+                  return <>{children}</>;
+                }
+                if (
                   Array.isArray(children) &&
                   children.length === 1 &&
                   typeof children[0] === 'object' &&
@@ -161,6 +166,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                 ) {
                   return children[0];
                 }
+                
                 return <p {...props}>{children}</p>;
               }
             }}

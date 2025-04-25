@@ -21,7 +21,6 @@ const AgentPanel: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   
   useEffect(() => {
-    // Initialize agent tools
     if (!isInitialized) {
       agentService.registerTools([
         createReadFileTool(),

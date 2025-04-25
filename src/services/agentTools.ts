@@ -1,3 +1,4 @@
+
 import { FileSystemItem, useFileExplorerStore } from '@/store/fileExplorerStore';
 
 export interface ToolDefinition {
@@ -14,19 +15,74 @@ export interface ToolDefinition {
 }
 
 
+const normalizePath = (path: string): string => {
+
+  if (!path) return '/project';
+  let normalized = path;
+  if (normalized.startsWith('./')) {
+    normalized = `/project${normalized.substring(1)}`;
+  } 
+  else if (normalized.startsWith('/')) {
+    normalized = normalized;
+  }
+  else {
+    normalized = `/project/${normalized}`;
+  }
+  
+  if (normalized !== '/' && normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1);
+  }
+  
+  return normalized;
+};
+
 const findItemByPath = (
   items: FileSystemItem[],
   path: string
 ): FileSystemItem | null => {
-  path = path.endsWith('/') ? path.slice(0, -1) : path;
+  const normalizedPath = normalizePath(path);
   
   for (const item of items) {
-    if (item.path === path) return item;
+    if (item.path === normalizedPath) return item;
     if (item.children) {
-      const found = findItemByPath(item.children, path);
+      const found = findItemByPath(item.children, normalizedPath);
       if (found) return found;
     }
   }
+  const pathLower = normalizedPath.toLowerCase();
+  for (const item of items) {
+    if (item.path.toLowerCase() === pathLower) return item;
+    if (item.children) {
+      const found = item.children.find(child => 
+        child.path.toLowerCase() === pathLower
+      );
+      if (found) return found;
+      const deepFound = findItemByPath(item.children, normalizedPath);
+      if (deepFound) return deepFound;
+    }
+  }
+  
+  return null;
+};
+
+const findItemByName = (
+  items: FileSystemItem[],
+  name: string
+): FileSystemItem | null => {
+  const nameLower = name.toLowerCase();
+  
+
+  for (const item of items) {
+    if (item.name.toLowerCase() === nameLower) return item;
+  }
+  
+  for (const item of items) {
+    if (item.children && item.children.length > 0) {
+      const found = findItemByName(item.children, name);
+      if (found) return found;
+    }
+  }
+  
   return null;
 };
 
@@ -46,18 +102,13 @@ export const createReadFileTool = (): ToolDefinition => ({
   },
   function: async ({ path }: { path: string }) => {
     try {
-      // Get the current file system state
+
       const fileSystem = useFileExplorerStore.getState().fileSystem;
       
-      // Normalize path
-      const normalizedPath = path.startsWith('./') 
-        ? `/project${path.substring(1)}` 
-        : path.startsWith('/') 
-          ? path 
-          : `/project/${path}`;
-      
-      // Find the file
-      const file = findItemByPath(fileSystem, normalizedPath);
+      let file = findItemByPath(fileSystem, path);
+      if (!file && path.indexOf('/') === -1) {
+        file = findItemByName(fileSystem, path);
+      }
       
       if (!file) {
         return `❌ Error reading file: File not found at path ${path}`;
@@ -74,7 +125,6 @@ export const createReadFileTool = (): ToolDefinition => ({
   },
 });
 
-// Create a list files tool that uses the mock file system
 export const createListFilesTool = (): ToolDefinition => ({
   name: "list_files",
   description: "Lists files and directories at a given path. Defaults to '.' if no path provided.",
@@ -91,20 +141,13 @@ export const createListFilesTool = (): ToolDefinition => ({
   },
   function: async ({ path = "." }: { path?: string }) => {
     try {
-      // Get the current file system state
       const fileSystem = useFileExplorerStore.getState().fileSystem;
       
-      // Normalize path
-      const normalizedPath = path === "." 
-        ? "/project" 
-        : path.startsWith('./') 
-          ? `/project${path.substring(1)}` 
-          : path.startsWith('/') 
-            ? path 
-            : `/project/${path}`;
-      
-      // Find the directory
-      const dir = findItemByPath(fileSystem, normalizedPath);
+      let dir = findItemByPath(fileSystem, path);
+
+      if (!dir && path && path !== "." && path.indexOf('/') === -1) {
+        dir = findItemByName(fileSystem, path);
+      }
       
       if (!dir) {
         return `❌ Error listing files: Directory not found at path ${path}`;
@@ -125,7 +168,6 @@ export const createListFilesTool = (): ToolDefinition => ({
   },
 });
 
-// Create an edit file tool that uses the mock file system
 export const createEditFileTool = (): ToolDefinition => ({
   name: "edit_file",
   description: `Make edits to a text file.
@@ -164,38 +206,35 @@ If the file specified with path doesn't exist, it will be created.`,
     }
 
     try {
-      // Get the current file system state and update functions
       const fileExplorerStore = useFileExplorerStore.getState();
       const fileSystem = fileExplorerStore.fileSystem;
       
-      // Normalize path
+      
       const normalizedPath = path.startsWith('./') 
         ? `/project${path.substring(1)}` 
         : path.startsWith('/') 
           ? path 
           : `/project/${path}`;
       
-      // Find the file
+     
       const file = findItemByPath(fileSystem, normalizedPath);
       
-      // If file doesn't exist and old_str is empty, create a new file
+      
       if (!file && old_str === "") {
-        // Extract parent path and filename
+       
         const pathParts = normalizedPath.split('/');
         const fileName = pathParts.pop() || '';
         const parentPath = pathParts.join('/');
         
-        // Find parent directory
         const parentDir = findItemByPath(fileSystem, parentPath);
         
         if (!parentDir || parentDir.type !== 'folder') {
           return `❌ Failed to create file: Parent directory not found`;
         }
         
-        // Add new file
         fileExplorerStore.addFile(parentPath, fileName);
         
-        // Get the newly created file and update its content
+        
         const newFileSystem = fileExplorerStore.fileSystem;
         const newFile = findItemByPath(newFileSystem, normalizedPath);
         
@@ -206,8 +245,6 @@ If the file specified with path doesn't exist, it will be created.`,
           return `❌ Failed to create file`;
         }
       }
-      
-      // Edit existing file
       if (file && file.type === 'file') {
         const content = file.content || '';
         
