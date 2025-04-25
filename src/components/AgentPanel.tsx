@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, MessageSquare, Sparkles, XCircle } from 'lucide-react';
+import { Send, Sparkles, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMessageStore } from '@/store/messageStore';
 import MessageBubble from '@/components/ui/MessageBubble';
@@ -67,13 +67,8 @@ const AgentPanel: React.FC = () => {
     setLoading(true);
     
     try {
-      const response = await agentService.sendMessage(prompt);
-      
-      // The response is already added to the conversation in the service
-      // We just need to update our local message store from the service
+      await agentService.sendMessage(prompt);
       const conversation = agentService.getConversation();
-      
-      // Get messages after our user message
       const newMessages = conversation.filter(
         msg => msg.timestamp > userMessage.timestamp
       );

@@ -38,8 +38,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           tool: toolData.name,
           input: toolData.input
         };
-      } catch (e) {
-        return null;
+      } catch (error) {
+        console.error('Error parsing tool call:', error);
+        
       }
     }
 
@@ -110,8 +111,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         <div className="prose prose-invert max-w-none">
           <ReactMarkdown
             components={{
-              code(props) {
-                const {inline, className, children, ...rest} = props as any;
+              code(props: React.ComponentProps<'code'> & {inline?: boolean}) {
+                const {inline, children, ...rest} = props;
                 return inline ? (
                   <code className="px-1 py-0.5 rounded bg-zinc-800 font-mono text-sm" {...rest}>
                     {children}
@@ -124,12 +125,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                   </pre>
                 );
               },
-              p({node, children, ...props}) {
+              p({children, ...props}) {
                 if (
                   Array.isArray(children) &&
                   children.length === 1 &&
                   typeof children[0] === 'object' &&
-                  // @ts-ignore: safely check for type property
                   children[0]?.type === 'pre'
                 ) {
                   return children[0];

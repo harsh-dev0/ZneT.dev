@@ -84,8 +84,8 @@ Example:
   clearConversation() {
     this.conversation = [this.conversation[0]]; // Keep system message
   }
-  
-  parseToolCall(text: string): { name: string; input: any } | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parseToolCall(text: string): { name: string; input: any} | null {
     const match = text.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
     if (!match) return null;
     try {
@@ -147,7 +147,7 @@ Example:
       // Check if the response contains a tool call
       const toolCall = this.parseToolCall(assistantContent);
       
-      let finalContent = assistantContent;
+      const finalContent = assistantContent;
       
       if (toolCall) {
         // Find the tool

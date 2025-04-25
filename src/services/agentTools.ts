@@ -3,7 +3,13 @@ import { FileSystemItem, useFileExplorerStore } from '@/store/fileExplorerStore'
 export interface ToolDefinition {
   name: string;
   description: string;
-  inputSchema: any;
+  inputSchema: {
+    type: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    properties: Record<string, any>;
+    required: string[];
+    additionalProperties: boolean;
+  };  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function: (input: any) => Promise<string>;
 }
 

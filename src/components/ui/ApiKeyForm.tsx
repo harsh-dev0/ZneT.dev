@@ -65,14 +65,14 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSuccess }) => {
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
             <p className="text-xs text-muted-foreground">
-              Don't have a key? Get one from{' '}
+              Don&apos;t have a key? Get one from{' '}
               <a 
                 href="https://console.groq.com/keys" 
                 target="_blank" 
                 rel="noreferrer"
                 className="text-primary underline underline-offset-2"
               >
-                Groq's console
+                Groq&apos;s console
               </a>.
             </p>
           </div>
