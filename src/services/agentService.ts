@@ -10,19 +10,25 @@ export type Message = {
 export type Conversation = Message[];
 
 const SYSTEM_PROMPT = `
-You are an AI assistant with access to three tools:
-Only use these tools whenever you think it will help the query
-
+You are an expert coding assistant for the ZneT IDE with access to filesystem tools.
 When responding, use markdown formatting to improve readability.
 For code blocks, always specify the language.
 
-Before calling each tool, first explain to the USER why you are calling it.
-After the tool result, you will get that output as a user message. Then continue reasoning or call another tool.
-If you do _not_ need a tool, just reply normally.
+Important Guidelines:
+1. Be proactive and helpful - make assumptions that help the user rather than asking clarifying questions.
+2. When user mentions a file or folder without specifying a full path, assume they want to work with that file/folder anywhere in the project.
+3. When the user asks about UI elements, components, or specific features, automatically search for relevant files without asking.
+4. Use the tools efficiently - search first, then read files, then edit as needed.
+5. Only use the tools when needed to answer the question - don't use tools if you can answer directly.
+6. Explain your reasoning clearly and concisely.
+
+Before calling each tool, briefly explain why you're using it. 
+After receiving the tool result, continue your assistance based on the new information.
 `.trim();
 
 class AgentService {
   private apiKey: string | null = null;
+  private isDefaultKey: boolean = false;
   private tools: ToolDefinition[] = [];
   private conversation: Conversation = [
     {
@@ -34,20 +40,30 @@ class AgentService {
   ];
   
   constructor() {
+    // Try to load API key from localStorage first
     if (typeof window !== 'undefined' && window.localStorage) {
-    this.apiKey = localStorage.getItem('groq_api_key');
-    } else {
-      this.apiKey = null;
+      this.apiKey = localStorage.getItem('groq_api_key');
+    }
+    
+    // If no key in localStorage, try to use default key from env
+    if (!this.apiKey && process.env.NEXT_PUBLIC_DEFAULT_GROQ_API_KEY) {
+      this.apiKey = process.env.NEXT_PUBLIC_DEFAULT_GROQ_API_KEY;
+      this.isDefaultKey = true;
     }
   }
   
   setApiKey(key: string) {
     this.apiKey = key;
+    this.isDefaultKey = false;
     localStorage.setItem('groq_api_key', key);
   }
   
   getApiKey(): string | null {
     return this.apiKey;
+  }
+  
+  isUsingDefaultKey(): boolean {
+    return this.isDefaultKey;
   }
   
   registerTools(tools: ToolDefinition[]) {
@@ -84,6 +100,7 @@ Example:
   clearConversation() {
     this.conversation = [this.conversation[0]]; // Keep system message
   }
+  
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parseToolCall(text: string): { name: string; input: any} | null {
     const match = text.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
@@ -111,11 +128,6 @@ Example:
     this.conversation.push(userMsg);
     
     try {
-      // For demo/development, use mock API response
-      if (process.env.NODE_ENV === 'development' && !this.apiKey.startsWith('gsk_')) {
-        return await this.getMockResponse(userMessage);
-      }
-      
       // Prepare conversation for API
       const messages = this.conversation.map(msg => ({
         role: msg.role,
@@ -138,7 +150,14 @@ Example:
       
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to get response from API');
+        let errorMsg = error.error?.message || 'Failed to get response from API';
+        
+        // Add default key specific error message
+        if (this.isDefaultKey && (errorMsg.includes('rate limit') || errorMsg.includes('quota'))) {
+          errorMsg += ' (Using default API key - set your own key for unlimited usage)';
+        }
+        
+        throw new Error(errorMsg);
       }
       
       const data = await response.json();
@@ -204,59 +223,6 @@ Example:
       
       return errorMsg;
     }
-  }
-  
-  // Mock response for development/demo
-  private async getMockResponse(userMessage: string): Promise<Message> {
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-    
-    let content = '';
-    
-    if (userMessage.toLowerCase().includes('list files')) {
-      content = 'I\'ll check what files are in the project.\n\n<tool_call>\n{"name":"list_files","input":{"path":"/project"}}\n</tool_call>';
-      
-      // Auto-execute the tool call for demo
-      const tool = this.tools.find(t => t.name === 'list_files');
-      if (tool) {
-        const result = await tool.function({ path: '/project' });
-        
-        // Add tool result as user message
-        const toolResultMsg: Message = {
-          id: Date.now().toString() + '-tool',
-          role: 'user',
-          content: `Tool result:\n${result}`,
-          timestamp: new Date(),
-        };
-        this.conversation.push(toolResultMsg);
-        
-        // Return a follow-up response
-        return {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `I've listed the files in your project. You have the following files and directories:\n\n\`\`\`json\n${result}\n\`\`\`\n\nIs there anything specific you'd like to know about these files?`,
-          timestamp: new Date(),
-        };
-      }
-    } else if (userMessage.toLowerCase().includes('read') && userMessage.toLowerCase().includes('app')) {
-      content = 'Let me read the App.jsx file to see its contents.\n\n<tool_call>\n{"name":"read_file","input":{"path":"/project/src/App.jsx"}}\n</tool_call>';
-    } else if (userMessage.toLowerCase().includes('edit') || userMessage.toLowerCase().includes('change')) {
-      content = 'I\'ll edit that file for you.\n\n<tool_call>\n{"name":"edit_file","input":{"path":"/project/src/App.jsx","old_str":"Example Counter","new_str":"Awesome Counter"}}\n</tool_call>';
-    } else {
-      content = `I understand you're asking about "${userMessage}". As your coding assistant, I can help with various tasks:
-
-1. Read code files to understand their content
-2. List files in directories to navigate the project
-3. Edit files to make changes you request
-
-Let me know what specific task you'd like me to help with!`;
-    }
-    
-    return {
-      id: Date.now().toString(),
-      role: 'assistant',
-      content,
-      timestamp: new Date(),
-    };
   }
 }
 

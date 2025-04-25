@@ -13,12 +13,11 @@ export interface ToolDefinition {
   function: (input: any) => Promise<string>;
 }
 
-// Helper to find a file or folder by path
+
 const findItemByPath = (
   items: FileSystemItem[],
   path: string
 ): FileSystemItem | null => {
-  // Normalize paths by removing trailing slashes
   path = path.endsWith('/') ? path.slice(0, -1) : path;
   
   for (const item of items) {
@@ -31,7 +30,6 @@ const findItemByPath = (
   return null;
 };
 
-// Create a read file tool that uses the mock file system
 export const createReadFileTool = (): ToolDefinition => ({
   name: "read_file",
   description: "Reads the contents of a file at a given relative path. Only use for text files.",

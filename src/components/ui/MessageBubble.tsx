@@ -1,7 +1,7 @@
 import React from 'react';
 import { Message } from '@/services/agentService';
 import { cn } from '@/lib/utils';
-import { FileCode2, User, Bot, Terminal } from 'lucide-react';
+import { FileCode2, User, Bot, Search, Edit, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface MessageBubbleProps {
@@ -27,20 +27,19 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   // Parse tool calls and results
   const parseToolContent = (content: string) => {
-    const toolCallMatch = content.match(/<\/tool_call>/);
+    const toolCallMatch = content.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
     if (toolCallMatch) {
       try {
         const toolData = JSON.parse(toolCallMatch[1]);
-        const action = content.split('')[0].trim();
+        const actionText = content.split('<tool_call>')[0].trim();
         return {
           type: 'tool-call',
-          action,
+          action: actionText,
           tool: toolData.name,
           input: toolData.input
         };
       } catch (error) {
         console.error('Error parsing tool call:', error);
-        
       }
     }
 
@@ -57,30 +56,58 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const toolContent = parseToolContent(message.content);
 
   if (toolContent?.type === 'tool-call') {
+    let statusIcon = <FileCode2 className="w-4 h-4" />;
     let status = 'Processing...';
-    if (toolContent.tool === 'list_files') status = 'Searching...';
-    else if (toolContent.tool === 'read_file') status = 'Reading...';
-    else if (toolContent.tool === 'edit_file') status = 'Editing...';
+    let statusClass = 'text-blue-400';
+    
+    if (toolContent.tool === 'list_files') {
+      statusIcon = <Search className="w-4 h-4" />;
+      status = 'Searching files...';
+      statusClass = 'text-amber-400';
+    } else if (toolContent.tool === 'read_file') {
+      statusIcon = <Eye className="w-4 h-4" />;
+      status = 'Reading file content...';
+      statusClass = 'text-green-400';
+    } else if (toolContent.tool === 'edit_file') {
+      statusIcon = <Edit className="w-4 h-4" />;
+      status = 'Editing file...';
+      statusClass = 'text-purple-400';
+    }
+    
     return (
-      <div className="flex items-center gap-2 px-4 py-2 text-sm text-blue-400">
-        <FileCode2 className="w-4 h-4" />
-        <span>{status}</span>
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-2 text-sm">
+          <div className={cn(
+            'flex h-6 w-6 shrink-0 select-none items-center justify-center rounded-md',
+            'bg-zinc-800'
+          )}>
+            <Bot className="h-4 w-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-zinc-400 text-sm mb-2">{toolContent.action}</p>
+            <div className={cn("flex items-center gap-2 px-3 py-2 rounded-md bg-zinc-800/50 border border-zinc-700/50", statusClass)}>
+              {statusIcon}
+              <div className="flex items-center gap-2">
+                <span>{status}</span>
+                <div className="flex space-x-1 ml-2">
+                  <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                  <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                  <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-zinc-500 self-start mt-1">
+            {formatTimestamp(message.timestamp)}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (toolContent?.type === 'tool-result') {
-    return (
-      <div className="px-4 py-2 text-sm">
-        <div className="flex items-center gap-2 mb-1 text-zinc-400">
-          <Terminal className="w-4 h-4" />
-          <span>Output</span>
-        </div>
-        <pre className="font-mono text-sm text-zinc-300 whitespace-pre-wrap">
-          {toolContent.result}
-        </pre>
-      </div>
-    );
+    // Don't show tool results in the UI as they're internal
+    return null;
   }
 
   if (isSystem) {

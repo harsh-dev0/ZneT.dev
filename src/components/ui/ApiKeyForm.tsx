@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Key } from 'lucide-react';
+import { Key, Info } from 'lucide-react';
 import agentService from '@/services/agentService';
 
 interface ApiKeyFormProps {
@@ -15,6 +15,7 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSuccess }) => {
   const [error, setError] = useState('');
   
   const existingKey = agentService.getApiKey();
+  const isUsingDefault = agentService.isUsingDefaultKey();
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +39,12 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSuccess }) => {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
-          variant={existingKey ? "outline" : "secondary"} 
+          variant={existingKey && !isUsingDefault ? "outline" : "secondary"} 
           size="sm" 
           className="flex items-center gap-2"
         >
           <Key className="h-4 w-4" />
-          {existingKey ? "Change API Key" : "Set API Key"}
+          {existingKey && !isUsingDefault ? "Change API Key" : "Set API Key"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -52,9 +53,15 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSuccess }) => {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-md border border-amber-200 dark:border-amber-900">
+              <Info className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                You can use the AI agent with our default API key (with rate limits),
+                or set your own premium Groq API key for unlimited usage.
+              </p>
+            </div>
             <p className="text-sm text-muted-foreground">
-              To use the AI agent, you need to provide a Groq API key. 
-              Your key will be stored locally in your browser.
+              Your key will be stored locally in your browser and never sent to our servers.
             </p>
             <Input
               type="password"

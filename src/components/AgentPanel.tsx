@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Sparkles, XCircle } from 'lucide-react';
+import { Send, Sparkles, XCircle, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useMessageStore } from '@/store/messageStore';
 import MessageBubble from '@/components/ui/MessageBubble';
@@ -77,11 +77,6 @@ const AgentPanel: React.FC = () => {
       for (const msg of newMessages) {
         addMessage(msg);
       }
-      
-      toast({
-        title: "Success",
-        description: "Agent response received",
-      });
     } catch (error) {
       toast({
         title: "Error",
@@ -101,6 +96,9 @@ const AgentPanel: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const isUsingDefaultKey = agentService.isUsingDefaultKey();
+  const hasApiKey = !!agentService.getApiKey();
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-zinc-900 to-black text-white">
@@ -128,13 +126,23 @@ const AgentPanel: React.FC = () => {
         </div>
       </div>
       
+      {isUsingDefaultKey && hasApiKey && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-zinc-800/50 border-b border-zinc-700/50 text-sm">
+          <Info className="h-4 w-4 text-amber-400 flex-shrink-0" />
+          <p className="text-zinc-300">
+            Using default API key with rate limits. 
+            <ApiKeyForm onSuccess={() => toast({ title: "API Key updated" })} />
+          </p>
+        </div>
+      )}
+      
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
         {messages.map((msg, idx) => (
           <MessageBubble key={msg.id + '-' + idx} message={msg} />
         ))}
         <div ref={messagesEndRef} />
         
-        {isLoading && (
+        {isLoading && !messages.some(m => m.content.includes('<tool_call>')) && (
           <div className="flex justify-start px-4 py-2">
             <div className="bg-zinc-800/50 text-zinc-300 rounded-lg px-4 py-2 flex items-center space-x-2">
               <div className="flex space-x-1">
@@ -142,7 +150,7 @@ const AgentPanel: React.FC = () => {
                 <span className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                 <span className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
               </div>
-              <span className="text-sm font-medium">Processing...</span>
+              <span className="text-sm font-medium">Thinking...</span>
             </div>
           </div>
         )}
@@ -170,7 +178,7 @@ const AgentPanel: React.FC = () => {
           />
           <Button
             type="submit"
-            disabled={isLoading || !prompt.trim()}
+            disabled={isLoading || !prompt.trim() || !hasApiKey}
             className="self-end bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg"
           >
             <Send className="h-4 w-4" />
