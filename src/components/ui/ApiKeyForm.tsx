@@ -26,7 +26,7 @@ const ApiKeyForm: React.FC<ApiKeyFormProps> = ({ onSuccess }) => {
     }
     
     try {
-      agentService.setApiKey(apiKey);
+      agentService.setGroqApiKey(apiKey);
       setError('');
       setOpen(false);
       onSuccess?.();
